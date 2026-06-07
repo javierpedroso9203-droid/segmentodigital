@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gerador de Currículo Profissional - Serviços Digitais</title>
     <link rel="stylesheet" href="style.css">
+    <!-- Dependência oficial para exportação direta em PDF -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <style>
         .foto-preview-container {
@@ -54,7 +55,7 @@
             transform: scale(1.05);
         }
         
-        /* MODAL DE VISTA PREVIA CORREGIDO (Estabiliza el diseño estrujado) */
+        /* MODAL DE VISTA PREVIA CORREGIDO */
         .preview-modal {
             display: none;
             position: fixed;
@@ -87,7 +88,7 @@
         }
         .close-preview:hover { background: #dc2626; }
         
-        /* CONTENEDOR RÍGIDO EN MINIATURA CON ESCALA EN LA VISTA PREVIA */
+        /* CONTENEDOR DE ESCALA DE LA MINIATURA */
         .preview-modal-body {
             margin-top: 25px;
             background: #0f172a;
@@ -100,10 +101,10 @@
         }
 
         .cv-scale-wrapper {
-            width: 794px; /* Proporción A4 exacta */
+            width: 794px;
             height: 1123px;
             transform-origin: top center;
-            transform: scale(0.6); /* Encoge de forma uniforme */
+            transform: scale(0.6);
             background: white;
             color: initial;
             box-shadow: 0 10px 25px rgba(0,0,0,0.3);
@@ -168,7 +169,7 @@
         <div class="preview-modal-content">
             <button type="button" class="close-preview" id="btnClosePreview">Fechar X</button>
             <h3 style="color: white; margin-top: 0;">👁️ Vista Prévia do seu Currículo</h3>
-            <p style="color: #94a3b8; font-size: 0.9rem;">Simulação em tamanho reduzido com a estrutura real do arquivo.</p>
+            <p style="color: #94a3b8; font-size: 0.9rem;">Simulação em tamanho reduzido com a estructura real do arquivo.</p>
             <div class="preview-modal-body">
                 <div id="modalTemplateContainer" class="cv-scale-wrapper"></div>
             </div>
@@ -196,6 +197,7 @@
                         <input type="text" id="nome" required minlength="3" pattern="^[A-Za-zÀ-ÿ\s]+$" placeholder="Ex: Diana Yelitza Díaz Matos">
                     </div>
 
+                    <!-- NUEVO CAMPO: Cargo u Objetivo de trabajo adicionado correctamente -->
                     <div class="form-group">
                         <label for="cargoPretendido">Cargo / Área de Interesse (Objetivo):</label>
                         <input type="text" id="cargoPretendido" required placeholder="Ex: Auxiliar de Serviços Gerais / Estoquista / Faxineira">
@@ -324,6 +326,7 @@
                 <button type="submit" id="btnSubmitForm" class="btn btn-submit" style="width: 100%; margin-top: 10px;">🖨️ Imprimir e Salvar Currículo (PDF)</button>
             </div>
 
+            <!-- ÁREA INTERNA DO TEMPLATE DE IMPRESSÃO -->
             <div id="cv-area-pdf" class="cv-visual-template" style="display: none;">
                 <div class="cv-left-sidebar">
                     <div class="cv-photo-container">
@@ -349,6 +352,7 @@
 
                 <div class="cv-right-body">
                     <h1 id="view-nome"></h1>
+                    <!-- CORREGIDO: Ahora el subtítulo recibe el valor dinámico del formulario -->
                     <h2 class="cv-sub-header" id="view-sub-cargo"></h2>
 
                     <div class="cv-contact-grid">
@@ -401,7 +405,7 @@
         function actualizarTemplateDatos() {
             document.getElementById('view-nome').innerText = document.getElementById('nome').value.toUpperCase() || "NOME COMPLETO";
             
-            // Asignación dinámica del Cargo en mayúsculas
+            // Renderiza el cargo o área ingresada por el usuario en mayúsculas
             const cargoInput = document.getElementById('cargoPretendido').value;
             document.getElementById('view-sub-cargo').innerText = cargoInput ? cargoInput.toUpperCase() : "OBJETIVO PROFISSIONAL";
 
@@ -474,7 +478,6 @@
             return { elementoCv, modeloSeleccionado };
         }
 
-        // Lógica del botón flotante de vista previa estricta
         document.getElementById('btnFloatingPreview').addEventListener('click', function() {
             const { modeloSeleccionado } = actualizarTemplateDatos();
             const origen = document.getElementById('cv-area-pdf');
@@ -496,71 +499,60 @@
             document.getElementById('previewModal').style.display = "none";
         });
 
-
-        // =========================================================================
-        // ACTUALIZADO: ENVÍO COMPLETO CORREGIDO PARA NETLIFY PRODUCTION
-        // =========================================================================
         document.getElementById('cadastroForm').addEventListener('submit', function(e) {
             e.preventDefault();
 
-            const boton = document.getElementById('btnSubmitForm');
-            boton.disabled = true;
-            boton.innerText = "⏳ Guardando dados e gerando pedido...";
+            const botonImprimir = document.getElementById('btnSubmitForm');
+            if (botonImprimir.disabled) return;
 
-            // Recopilamos absolutamente TODOS los campos del formulario para el Excel
-const datosParaEnviar = {
-    nome: document.getElementById('nome').value,
-    cargo: document.getElementById('cargoPretendido').value,
-    idade: document.getElementById('idade').value,
-    regiao: document.getElementById('regiao').value,
-    celular: document.getElementById('celular').value,
-    sexo: document.getElementById('sexo').value,                 
-    correo: document.getElementById('correo').value,
-    endereco: document.getElementById('endereco').value,
-    objetivo: document.getElementById('objetivo').value,         
-    habilidades: document.getElementById('habilidades').value,   
-    formacion: document.getElementById('formacion').value,       
-    idiomas: document.getElementById('idiomas').value,           
-    cursos: document.getElementById('cursos').value,             
-    experiencia: document.getElementById('experiencia').value,   
-    modelo_cv: document.querySelector('input[name="modelo_cv"]:checked').value,
-    fotoPerfilBase64: base64Image // <-- AÑADE ESTA LÍNEA AQUÍ
-};
+            const { elementoCv, modeloSeleccionado } = actualizarTemplateDatos();
+            const nombreCliente = document.getElementById('nome').value || "Curriculo";
+            
+            const d = new Date();
+            const timestamp = `${d.getFullYear()}${d.getMonth()+1}${d.getDate()}_${d.getHours()}${d.getMinutes()}${d.getSeconds()}`;
+            const nombreLimpio = nombreCliente.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '');
 
-            // Enviamos el paquete JSON completo al backend serverless de Netlify
-            fetch('/.netlify/functions/salvar-cv', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(datosParaEnviar)
-            })
-            .then(response => {
-                if(!response.ok) {
-                    throw new Error("Erro de resposta do servidor");
-                }
-                return response.json();
-            })
-            .then(resultado => {
-                if (resultado.success) {
-                    // Guardamos el ID resultante en el navegador del usuario como respaldo
-                    localStorage.setItem('codigo_cliente', resultado.id);
-                    
-                    // Redirección automática a la pasarela o instrucciones de pago
-                    window.location.href = `instrucciones-pago.html?id=${resultado.id}`;
-                } else {
-                    alert("Erro ao processar as informações do formulário.");
-                    boton.disabled = false;
-                    boton.innerText = "🖨️ Imprimir e Salvar Currículo (PDF)";
-                }
-            })
-            .catch(error => {
-                console.error("Erro:", error);
-                alert("Erro de comunicação com o servidor. Verifique se as funções do Netlify estão ativas.");
-                boton.disabled = false;
-                boton.innerText = "🖨️ Imprimir e Salvar Currículo (PDF)";
+            elementoCv.style.display = (modeloSeleccionado === 'modelo-executivo') ? "block" : "flex";
+            elementoCv.style.position = "relative";
+
+            const opcionesPdf = {
+                margin: 0,
+                filename: `CV_${nombreLimpio}_${timestamp}.pdf`,
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { 
+                    scale: 2, 
+                    useCORS: true,
+                    logging: false,
+                    letterRendering: true,
+                    scrollX: 0,
+                    scrollY: 0
+                },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+
+            botonImprimir.disabled = true;
+            botonImprimir.innerText = "🖨️ Imprimindo e Baixando PDF...";
+
+            html2pdf().from(elementoCv).set(opcionesPdf).save().then(function() {
+                elementoCv.style.display = "none";
+                elementoCv.style.position = "static";
+
+                document.getElementById('cadastroForm').reset();
+                document.getElementById('form-foto-preview').style.display = "none";
+                document.getElementById('preview-hint-text').innerText = "Nenhuma foto selecionada ainda.";
+                
+                botonImprimir.disabled = false;
+                botonImprimir.innerText = "🖨️ Imprimir e Salvar Currículo (PDF)";
+                
+                window.location.href = "index.html";
+            }).catch(function(error) {
+                console.error('Erro na geração do PDF:', error);
+                elementoCv.style.display = "none";
+                elementoCv.style.position = "static";
+                botonImprimir.disabled = false;
+                botonImprimir.innerText = "🖨️ Imprimir e Salvar Currículo (PDF)";
             });
         });
-        // =========================================================================
-
     </script>
 </body>
 </html>
