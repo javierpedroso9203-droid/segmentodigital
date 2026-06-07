@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Baixar Currículo - Serviços Digitais</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    
+    <style>
+        /* Pantalla de carga mientras se busca en la base de datos */
+        body {
+            background: #0f172a;
+            color: #fff;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .loading-container {
+            text-align: center;
+            background: #1e293b;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+            max-width: 400px;
+            width: 90%;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.1);
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            border-left-color: #3b82f6;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .btn-manual {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            margin-top: 15px;
+            display: none;
+            text-decoration: none;
+        }
+        .btn-manual:hover { background: #2563eb; }
+        
+        /* Oculta la estructura visual del CV en el navegador para que no estorbe */
+        #cv-area-pdf {
+            position: absolute;
+            left: -9999px;
+            top: -9999px;
+            background: white;
+            color: #000;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="loading-container" id="status-box">
+        <div class="spinner" id="loader"></div>
+        <h2 id="status-title">Buscando seus dados...</h2>
+        <p id="status-text">Estamos preparando o seu arquivo PDF de alta qualidade.</p>
+        <button onclick="generarPDF()" id="btn-download-manual" class="btn-manual">Baixar Manualmente PDF</button>
+    </div>
+
+    <div id="cv-area-pdf" class="cv-visual-template">
+        <div class="cv-left-sidebar">
+            <div class="cv-photo-container">
+                <img id="print-avatar" src="https://via.placeholder.com/150" alt="Foto de Perfil">
+            </div>
+            <div class="sidebar-section">
+                <h4>👤 PERFIL PROFISSIONAL</h4>
+                <p id="view-objetivo"></p>
+            </div>
+            <div class="sidebar-section">
+                <h4>⭐ HABILIDADES</h4>
+                <ul id="view-habilidades"></ul>
+            </div>
+            <div class="sidebar-section">
+                <h4>🎓 FORMAÇÃO ACADÊMICA</h4>
+                <p id="view-formacion" class="highlight-edu"></p>
+            </div>
+            <div class="sidebar-section">
+                <h4>🌐 IDIOMAS</h4>
+                <ul id="view-idiomas"></ul>
+            </div>
+        </div>
+
+        <div class="cv-right-body">
+            <h1 id="view-nome"></h1>
+            <h2 class="cv-sub-header" id="view-sub-cargo"></h2>
+
+            <div class="cv-contact-grid">
+                <div>📞 <strong class="lbl">Celular:</strong> <span id="view-celular"></span></div>
+                <div>✉️ <strong class="lbl">E-mail:</strong> <span id="view-correo"></span></div>
+                <div>📅 <strong class="lbl">Data de nascimento:</strong> <span id="view-idade"></span></div>
+                <div>📍 <strong class="lbl">Endereço:</strong> <span id="view-endereco"></span></div>
+                <div>🇧🇷 <strong class="lbl">Nacionalidade:</strong> <span id="view-regiao"></span></div>
+                <div>👤 <strong class="lbl">Sexo:</strong> <span id="view-sexo"></span></div>
+            </div>
+
+            <div class="cv-main-section">
+                <h3 class="secao-titulo-dinamico">💼 EXPERIÊNCIAS PROFISSIONAIS</h3>
+                <div class="timeline-wrapper" id="view-experiencia"></div>
+            </div>
+
+            <div class="cv-main-section" id="section-cursos-div">
+                <h3 class="secao-titulo-dinamico">📘 CURSOS</h3>
+                <ul id="view-cursos" class="cursos-print-list"></ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 1. Capturar el ID desde la dirección URL (?id=CV_XXXX)
+        const urlParams = new URLSearchParams(window.location.search);
+        const clienteId = urlParams.get('id');
+
+        if (!clienteId) {
+            mostrarError("ID de download inválido ou ausente.");
+        } else {
+            cargarDatosCV(clienteId);
+        }
+
+        // 2. Llamar a tu función de Netlify para leer la fila de Excel
+        function cargarDatosCV(id) {
+            fetch(`/.netlify/functions/obter-cv?id=${id}`)
+            .then(response => {
+                if (!response.ok) throw new Error('Não foi possível encontrar os dados.');
+                return response.json();
+            })
+            .then(data => {
+                // Inyectar los datos recuperados en el documento HTML
+                inyectarDatos(data);
+            })
+            .catch(error => {
+                console.error(error);
+                mostrarError("Erro ao recuperar os dados do servidor.");
+            });
+        }
+
+        // 3. Colocar cada texto en su respectiva sección
+        function inyectarDatos(data) {
+            document.getElementById('view-nome').innerText = (data.nome || "NOME COMPLETO").toUpperCase();
+            document.getElementById('view-sub-cargo').innerText = (data.cargo || "OBJETIVO PROFISSIONAL").toUpperCase();
+            
+            if(data.idade) {
+                const partes = data.idade.split('-');
+                document.getElementById('view-idade').innerText = partes.length === 3 ? `${partes[2]}/${partes[1]}/${partes[0]}` : data.idade;
+            } else {
+                document.getElementById('view-idade').innerText = "—";
+            }
+
+            document.getElementById('view-regiao').innerText = data.regiao || "—";
+            document.getElementById('view-celular').innerText = data.celular || "—";
+            document.getElementById('view-sexo').innerText = data.sexo || "—";
+            document.getElementById('view-correo').innerText = data.correo || "—";
+            document.getElementById('view-endereco').innerText = data.endereco || "—";
+            document.getElementById('view-objetivo').innerText = data.objetivo || "—";
+            document.getElementById('view-formacion').innerText = data.formacion || "—";
+
+            // Separar y listar Habilidades
+            const habList = document.getElementById('view-habilidades');
+            habList.innerHTML = "";
+            if(data.habilidades) {
+                data.habilidades.split(',').forEach(h => {
+                    if(h.trim()) habList.innerHTML += `<li>${h.trim()}</li>`;
+                });
+            }
+
+            // Separar y listar Idiomas
+            const idList = document.getElementById('view-idiomas');
+            idList.innerHTML = "";
+            if(data.idiomas) {
+                data.idiomas.split(',').forEach(i => {
+                    if(i.trim()) idList.innerHTML += `<li>${i.trim()}</li>`;
+                });
+            }
+
+            // Separar y listar Cursos
+            const curList = document.getElementById('view-cursos');
+            curList.innerHTML = "";
+            if(data.cursos && data.cursos.trim()) {
+                document.getElementById('section-cursos-div').style.display = "block";
+                data.cursos.split(',').forEach(c => {
+                    if(c.trim()) curList.innerHTML += `<li>${c.trim()}</li>`;
+                });
+            } else {
+                document.getElementById('section-cursos-div').style.display = "none";
+            }
+
+            // Procesar y renderizar las Experiencias Laborales
+            const expTimeline = document.getElementById('view-experiencia');
+            expTimeline.innerHTML = "";
+            if(data.experiencia) {
+                data.experiencia.split('\n').forEach(linea => {
+                    if(linea.trim()) {
+                        const partes = linea.split('|');
+                        const cargo = partes[0] ? partes[0].trim() : 'Funcionário';
+                        const empresa = partes[1] ? partes[1].trim().toUpperCase() : 'Autônomo';
+                        const tempo = partes[2] ? partes[2].trim() : '';
+
+                        expTimeline.innerHTML += `
+                            <div class="timeline-item">
+                                <div class="timeline-dot"></div>
+                                <div class="timeline-content">
+                                    <span class="exp-cargo">${cargo}</span>
+                                    <span class="exp-empresa">${empresa}</span>
+                                    ${tempo ? `<span class="exp-tempo">${tempo}</span>` : ''}
+                                </div>
+                            </div>
+                        `;
+                    }
+                });
+            }
+
+            // Cargar modelo de diseño seleccionado
+            const elementoCv = document.getElementById('cv-area-pdf');
+            if(data.modelo_cv) {
+                elementoCv.className = `cv-visual-template ${data.modelo_cv}`;
+            } else {
+                elementoCv.className = 'cv-visual-template modelo-azul-ouro';
+            }
+
+            // Cargar la foto guardada en formato Base64 si existe
+            if(data.fotoPerfilBase64) {
+                document.getElementById('print-avatar').src = data.fotoPerfilBase64;
+            }
+
+            // Esperar un breve instante para asegurar el render y descargar el PDF
+            setTimeout(generarPDF, 800);
+        }
+
+        // 4. Activar html2pdf sobre el elemento oculto
+        function generarPDF() {
+            const element = document.getElementById('cv-area-pdf');
+            const nombreArchivo = document.getElementById('view-nome').innerText || "Curriculo";
+            
+            // Hacerlo visible solo para la captura del PDF
+            element.style.position = "static";
+            element.style.left = "0";
+            element.style.top = "0";
+
+            const opt = {
+                margin:       0,
+                filename:     `Currículo_${nombreArchivo.replace(/\s+/g, '_')}.pdf`,
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 2, useCORS: true, logging: false },
+                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+
+            html2pdf().set(opt).from(element).save().then(() => {
+                // Volver a ocultarlo de la interfaz visual
+                element.style.position = "absolute";
+                element.style.left = "-9999px";
+                element.style.top = "-9999px";
+
+                // Cambiar el estado de carga por éxito
+                document.getElementById('loader').style.display = "none";
+                document.getElementById('status-title').innerText = "✓ Download Concluído!";
+                document.getElementById('status-text').innerText = "Se o seu arquivo não baixou automaticamente, clique no botão abaixo.";
+                document.getElementById('btn-download-manual').style.display = "inline-block";
+            }).catch(err => {
+                console.error("Erro no render do PDF:", err);
+                mostrarError("Erro ao gerar o arquivo PDF.");
+            });
+        }
+
+        function mostrarError(mensaje) {
+            document.getElementById('loader').style.display = "none";
+            document.getElementById('status-title').innerText = "⚠️ Ops!";
+            document.getElementById('status-text').innerText = mensaje;
+        }
+    </script>
+</body>
+</html>

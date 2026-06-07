@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gerador de Currículo Profissional - Serviços Digitais</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <style>
+        .foto-preview-container {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-top: 10px;
+            background: rgba(255, 255, 255, 0.03);
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px dashed rgba(255, 255, 255, 0.1);
+        }
+        .mini-preview-circle {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            object-fit: cover;
+            background: #1e293b;
+            border: 2px solid #3b82f6;
+            display: none;
+        }
+        .preview-text-hint {
+            font-size: 0.8rem;
+            color: #94a3b8;
+        }
+        .btn-floating-preview {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: #3b82f6;
+            color: #ffffff;
+            border: none;
+            border-radius: 50px;
+            padding: 15px 25px;
+            font-size: 1rem;
+            font-weight: bold;
+            box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);
+            cursor: pointer;
+            z-index: 999;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: transform 0.2s, background 0.2s;
+        }
+        .btn-floating-preview:hover {
+            background: #2563eb;
+            transform: scale(1.05);
+        }
+        
+        /* MODAL DE VISTA PREVIA CORREGIDO (Estabiliza el diseño estrujado) */
+        .preview-modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(5px);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        .preview-modal-content {
+            background: #1e293b;
+            padding: 20px;
+            border-radius: 12px;
+            width: 95%;
+            max-width: 600px;
+            max-height: 90vh;
+            overflow-y: auto;
+            position: relative;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+        }
+        .close-preview {
+            position: absolute;
+            top: 15px; right: 20px;
+            background: #ef4444; color: white;
+            border: none; padding: 8px 15px; border-radius: 6px;
+            cursor: pointer; font-weight: bold; font-size: 0.9rem;
+            z-index: 1010;
+        }
+        .close-preview:hover { background: #dc2626; }
+        
+        /* CONTENEDOR RÍGIDO EN MINIATURA CON ESCALA EN LA VISTA PREVIA */
+        .preview-modal-body {
+            margin-top: 25px;
+            background: #0f172a;
+            border-radius: 8px;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            overflow: hidden;
+        }
+
+        .cv-scale-wrapper {
+            width: 794px; /* Proporción A4 exacta */
+            height: 1123px;
+            transform-origin: top center;
+            transform: scale(0.6); /* Encoge de forma uniforme */
+            background: white;
+            color: initial;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+            border-radius: 4px;
+        }
+
+        @media (max-width: 600px) {
+            .cv-scale-wrapper {
+                transform: scale(0.38);
+            }
+            .preview-modal-body {
+                height: 480px;
+            }
+        }
+        @media (min-width: 601px) {
+            .preview-modal-body {
+                height: 720px;
+            }
+        }
+        
+        select, input[type="date"] {
+            width: 100%;
+            padding: 12px 15px;
+            background: #0f172a;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            color: #fff;
+            font-size: 1rem;
+            transition: 0.3s;
+            box-sizing: border-box;
+        }
+        select {
+            appearance: none;
+            cursor: pointer;
+        }
+        select:focus, input[type="date"]:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+        }
+        input[type="date"]::-webkit-calendar-picker-indicator {
+            filter: invert(1);
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+    <header class="form-header no-print">
+        <div class="container">
+            <a href="index.html" class="back-link">← Voltar ao Início</a>
+            <h2>Criar Currículo Profissional</h2>
+            <p>Preencha os campos para gerar o seu currículo no modelo profissional.</p>
+        </div>
+    </header>
+
+    <button type="button" id="btnFloatingPreview" class="btn-floating-preview no-print">
+        👁️ Vista Prévia Documento
+    </button>
+
+    <div id="previewModal" class="preview-modal no-print">
+        <div class="preview-modal-content">
+            <button type="button" class="close-preview" id="btnClosePreview">Fechar X</button>
+            <h3 style="color: white; margin-top: 0;">👁️ Vista Prévia do seu Currículo</h3>
+            <p style="color: #94a3b8; font-size: 0.9rem;">Simulação em tamanho reduzido com a estrutura real do arquivo.</p>
+            <div class="preview-modal-body">
+                <div id="modalTemplateContainer" class="cv-scale-wrapper"></div>
+            </div>
+        </div>
+    </div>
+
+    <main class="container form-container">
+        <form id="cadastroForm" class="card-form cv-layout-master">
+            
+            <div class="web-form-content no-print">
+                <div class="form-section">
+                    <h3>Dados Pessoais</h3>
+                    
+                    <div class="form-group">
+                        <label for="fotoPerfil">Foto de Perfil (Formatos: JPG, PNG):</label>
+                        <input type="file" id="fotoPerfil" accept="image/*" required>
+                        <div class="foto-preview-container">
+                            <img id="form-foto-preview" class="mini-preview-circle" alt="Preview">
+                            <span id="preview-hint-text" class="preview-text-hint">Nenhuma foto selecionada ainda.</span>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="nome">Nome Completo:</label>
+                        <input type="text" id="nome" required minlength="3" pattern="^[A-Za-zÀ-ÿ\s]+$" placeholder="Ex: Diana Yelitza Díaz Matos">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="cargoPretendido">Cargo / Área de Interesse (Objetivo):</label>
+                        <input type="text" id="cargoPretendido" required placeholder="Ex: Auxiliar de Serviços Gerais / Estoquista / Faxineira">
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="idade">Data de Nascimento:</label>
+                            <input type="date" id="idade" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="regiao">Nacionalidade:</label>
+                            <input type="text" id="regiao" required placeholder="Ex: Venezuelana">
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="celular">Celular / Telefone:</label>
+                            <input type="text" id="celular" required placeholder="Ex: (41) 9 9870-8949">
+                        </div>
+                        <div class="form-group">
+                            <label for="sexo">Sexo:</label>
+                            <select id="sexo" required>
+                                <option value="" disabled selected>Selecione uma opção...</option>
+                                <option value="Feminino">Feminino</option>
+                                <option value="Masculino">Masculino</option>
+                                <option value="Não informado">Prefiro não declarar</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="correo">E-mail de Contato:</label>
+                        <input type="email" id="correo" required placeholder="Ex: dianayelitza13@gmail.com">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="endereco">Endereço Residencial Completo:</label>
+                        <input type="text" id="endereco" required placeholder="Ex: Rua José Bassa, 1626 - Bairro Sítio Cercado, Curitiba - PR">
+                    </div>
+                </div>
+
+                <hr class="form-divider">
+
+                <div class="form-section">
+                    <h3>Perfil Profissional & Competências</h3>
+                    <div class="form-group">
+                        <label for="objetivo">Perfil Profissional (Resumo):</label>
+                        <textarea id="objetivo" required placeholder="Ex: Profissional dedicada e responsável..."></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="habilidades">Habilidades (Separe por vírgulas):</label>
+                        <input type="text" id="habilidades" required placeholder="Ex: Trabalho em equipe, Aprendizado rápido">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="formacion">Formação Acadêmica / Ensino:</label>
+                        <select id="formacion" required>
+                            <option value="" disabled selected>Selecione a sua escolaridade...</option>
+                            <option value="Ensino Fundamental Completo">Ensino Fundamental Completo</option>
+                            <option value="Ensino Médio Incompleto">Ensino Médio Incompleto</option>
+                            <option value="Ensino Médio Completo">Ensino Médio Completo</option>
+                            <option value="Ensino Técnico Incompleto">Ensino Técnico Incompleto</option>
+                            <option value="Ensino Técnico Completo">Ensino Técnico Completo</option>
+                            <option value="Ensino Superior Incompleto">Ensino Superior Incompleto</option>
+                            <option value="Ensino Superior Completo">Ensino Superior Completo</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="idiomas">Idiomas e Fluência (Separe por vírgulas):</label>
+                        <input type="text" id="idiomas" placeholder="Ex: Espanhol: Nativo, Português: Intermediário">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="cursos">Cursos Complementares (Separe por vírgulas):</label>
+                        <input type="text" id="cursos" placeholder="Ex: Gestão de Arquivos, Informática">
+                    </div>
+                </div>
+
+                <hr class="form-divider">
+
+                <div class="form-section">
+                    <h3>Experiências Profissionais</h3>
+                    <p style="font-size:0.85rem; color:#94a3b8; margin-bottom:15px;">Use o formato: <strong>Cargo | Empresa | Duração</strong> (um por linha)</p>
+                    <div class="form-group">
+                        <label for="experiencia">Histórico de Trabalho:</label>
+                        <textarea id="experiencia" style="height:150px;" required placeholder="Auxiliar de Lavanderia | HOTEL IMPERIAL | (08 meses)&#10;Faxineira / Secretária do Lar | AUTÔNOMA | (02 anos)"></textarea>
+                    </div>
+                </div>
+
+                <hr class="form-divider">
+
+                <div class="form-section">
+                    <h3>Escolha o Formato do seu Currículo</h3>
+                    <div class="modelo-selector-grid">
+                        <label class="modelo-card">
+                            <input type="radio" name="modelo_cv" value="modelo-azul-ouro" checked>
+                            <div class="modelo-preview-box">
+                                <span class="badge-modelo">Recomendado</span>
+                                <strong>Azul & Ouro (Foto)</strong>
+                                <p>Layout premium com barra lateral escura e linha de tempo.</p>
+                            </div>
+                        </label>
+
+                        <label class="modelo-card">
+                            <input type="radio" name="modelo_cv" value="modelo-executivo">
+                            <div class="modelo-preview-box">
+                                <strong>Executivo Clássico</strong>
+                                <p>Design corporativo elegante e sóbrio com foto integrada no topo.</p>
+                            </div>
+                        </label>
+
+                        <label class="modelo-card">
+                            <input type="radio" name="modelo_cv" value="modelo-minimalista">
+                            <div class="modelo-preview-box">
+                                <strong>Moderno Minimalista</strong>
+                                <p>Visual clean focado na legibilidade extrema e organização direta.</p>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                <button type="submit" id="btnSubmitForm" class="btn btn-submit" style="width: 100%; margin-top: 10px;">🖨️ Imprimir e Salvar Currículo (PDF)</button>
+            </div>
+
+            <div id="cv-area-pdf" class="cv-visual-template" style="display: none;">
+                <div class="cv-left-sidebar">
+                    <div class="cv-photo-container">
+                        <img id="print-avatar" src="" alt="Foto de Perfil">
+                    </div>
+                    <div class="sidebar-section">
+                        <h4>👤 PERFIL PROFISSIONAL</h4>
+                        <p id="view-objetivo"></p>
+                    </div>
+                    <div class="sidebar-section">
+                        <h4>⭐ HABILIDADES</h4>
+                        <ul id="view-habilidades"></ul>
+                    </div>
+                    <div class="sidebar-section">
+                        <h4>🎓 FORMAÇÃO ACADÊMICA</h4>
+                        <p id="view-formacion" class="highlight-edu"></p>
+                    </div>
+                    <div class="sidebar-section">
+                        <h4>🌐 IDIOMAS</h4>
+                        <ul id="view-idiomas"></ul>
+                    </div>
+                </div>
+
+                <div class="cv-right-body">
+                    <h1 id="view-nome"></h1>
+                    <h2 class="cv-sub-header" id="view-sub-cargo"></h2>
+
+                    <div class="cv-contact-grid">
+                        <div>📞 <strong class="lbl">Celular:</strong> <span id="view-celular"></span></div>
+                        <div>✉️ <strong class="lbl">E-mail:</strong> <span id="view-correo"></span></div>
+                        <div>📅 <strong class="lbl">Data de nascimento:</strong> <span id="view-idade"></span></div>
+                        <div>📍 <strong class="lbl">Endereço:</strong> <span id="view-endereco"></span></div>
+                        <div>🇧🇷 <strong class="lbl">Nacionalidade:</strong> <span id="view-regiao"></span></div>
+                        <div>👤 <strong class="lbl">Sexo:</strong> <span id="view-sexo"></span></div>
+                    </div>
+
+                    <div class="cv-main-section">
+                        <h3 class="secao-titulo-dinamico">💼 EXPERIÊNCIAS PROFISSIONAIS</h3>
+                        <div class="timeline-wrapper" id="view-experiencia"></div>
+                    </div>
+
+                    <div class="cv-main-section" id="section-cursos-div">
+                        <h3 class="secao-titulo-dinamico">📘 CURSOS</h3>
+                        <ul id="view-cursos" class="cursos-print-list"></ul>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </main>
+
+    <footer class="no-print">
+        <p>© 2026 Serviços Digitais - Todos os direitos reservados.</p>
+    </footer>
+
+    <script>
+        let base64Image = "";
+        
+        document.getElementById('fotoPerfil').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    base64Image = event.target.result;
+                    document.getElementById('print-avatar').src = base64Image;
+                    
+                    const miniPreview = document.getElementById('form-foto-preview');
+                    miniPreview.src = base64Image;
+                    miniPreview.style.display = "block";
+                    document.getElementById('preview-hint-text').innerText = "Foto carregada com sucesso! ✓";
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        function actualizarTemplateDatos() {
+            document.getElementById('view-nome').innerText = document.getElementById('nome').value.toUpperCase() || "NOME COMPLETO";
+            
+            // Asignación dinámica del Cargo en mayúsculas
+            const cargoInput = document.getElementById('cargoPretendido').value;
+            document.getElementById('view-sub-cargo').innerText = cargoInput ? cargoInput.toUpperCase() : "OBJETIVO PROFISSIONAL";
+
+            const dataInput = document.getElementById('idade').value;
+            if(dataInput) {
+                const partesData = dataInput.split('-');
+                document.getElementById('view-idade').innerText = `${partesData[2]}/${partesData[1]}/${partesData[0]}`;
+            } else {
+                document.getElementById('view-idade').innerText = "—";
+            }
+
+            document.getElementById('view-regiao').innerText = document.getElementById('regiao').value || "—";
+            document.getElementById('view-celular').innerText = document.getElementById('celular').value || "—";
+            document.getElementById('view-sexo').innerText = document.getElementById('sexo').value || "—";
+            document.getElementById('view-correo').innerText = document.getElementById('correo').value || "—";
+            document.getElementById('view-endereco').innerText = document.getElementById('endereco').value || "—";
+            document.getElementById('view-objetivo').innerText = document.getElementById('objetivo').value || "—";
+            document.getElementById('view-formacion').innerText = document.getElementById('formacion').value || "—";
+
+            const habList = document.getElementById('view-habilidades');
+            habList.innerHTML = "";
+            document.getElementById('habilidades').value.split(',').forEach(h => {
+                if(h.trim()) habList.innerHTML += `<li>${h.trim()}</li>`;
+            });
+
+            const idList = document.getElementById('view-idiomas');
+            idList.innerHTML = "";
+            document.getElementById('idiomas').value.split(',').forEach(i => {
+                if(i.trim()) idList.innerHTML += `<li>${i.trim()}</li>`;
+            });
+
+            const curList = document.getElementById('view-cursos');
+            curList.innerHTML = "";
+            const cursosVal = document.getElementById('cursos').value;
+            if(cursosVal && cursosVal.trim()) {
+                document.getElementById('section-cursos-div').style.display = "block";
+                cursosVal.split(',').forEach(c => {
+                    if(c.trim()) curList.innerHTML += `<li>${c.trim()}</li>`;
+                });
+            } else {
+                document.getElementById('section-cursos-div').style.display = "none";
+            }
+
+            const expTimeline = document.getElementById('view-experiencia');
+            expTimeline.innerHTML = "";
+            document.getElementById('experiencia').value.split('\n').forEach(linea => {
+                if(linea.trim()) {
+                    const partes = linea.split('|');
+                    const cargo = partes[0] ? partes[0].trim() : 'Funcionário';
+                    const empresa = partes[1] ? partes[1].trim().toUpperCase() : 'Autônomo';
+                    const tempo = partes[2] ? partes[2].trim() : '';
+
+                    expTimeline.innerHTML += `
+                        <div class="timeline-item">
+                            <div class="timeline-dot"></div>
+                            <div class="timeline-content">
+                                <span class="exp-cargo">${cargo}</span>
+                                <span class="exp-empresa">${empresa}</span>
+                                ${tempo ? `<span class="exp-tempo">${tempo}</span>` : ''}
+                            </div>
+                        </div>
+                    `;
+                }
+            });
+
+            const elementoCv = document.getElementById('cv-area-pdf');
+            const modeloSeleccionado = document.querySelector('input[name="modelo_cv"]:checked').value;
+            elementoCv.classList.remove('modelo-azul-ouro', 'modelo-executivo', 'modelo-minimalista');
+            elementoCv.classList.add(modeloSeleccionado);
+            return { elementoCv, modeloSeleccionado };
+        }
+
+        // Lógica del botón flotante de vista previa estricta
+        document.getElementById('btnFloatingPreview').addEventListener('click', function() {
+            const { modeloSeleccionado } = actualizarTemplateDatos();
+            const origen = document.getElementById('cv-area-pdf');
+            const contenedorModal = document.getElementById('modalTemplateContainer');
+            
+            contenedorModal.innerHTML = "";
+            const clon = origen.cloneNode(true);
+            
+            clon.style.display = (modeloSeleccionado === 'modelo-executivo') ? "block" : "flex";
+            clon.style.position = "static";
+            clon.style.width = "100%";
+            clon.style.boxShadow = "none";
+            
+            contenedorModal.appendChild(clon);
+            document.getElementById('previewModal').style.display = "flex";
+        });
+
+        document.getElementById('btnClosePreview').addEventListener('click', function() {
+            document.getElementById('previewModal').style.display = "none";
+        });
+
+
+        // =========================================================================
+        // ACTUALIZADO: ENVÍO COMPLETO CORREGIDO PARA NETLIFY PRODUCTION
+        // =========================================================================
+        document.getElementById('cadastroForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const boton = document.getElementById('btnSubmitForm');
+            boton.disabled = true;
+            boton.innerText = "⏳ Guardando dados e gerando pedido...";
+
+            // Recopilamos absolutamente TODOS los campos del formulario para el Excel
+const datosParaEnviar = {
+    nome: document.getElementById('nome').value,
+    cargo: document.getElementById('cargoPretendido').value,
+    idade: document.getElementById('idade').value,
+    regiao: document.getElementById('regiao').value,
+    celular: document.getElementById('celular').value,
+    sexo: document.getElementById('sexo').value,                 
+    correo: document.getElementById('correo').value,
+    endereco: document.getElementById('endereco').value,
+    objetivo: document.getElementById('objetivo').value,         
+    habilidades: document.getElementById('habilidades').value,   
+    formacion: document.getElementById('formacion').value,       
+    idiomas: document.getElementById('idiomas').value,           
+    cursos: document.getElementById('cursos').value,             
+    experiencia: document.getElementById('experiencia').value,   
+    modelo_cv: document.querySelector('input[name="modelo_cv"]:checked').value,
+    fotoPerfilBase64: base64Image // <-- AÑADE ESTA LÍNEA AQUÍ
+};
+
+            // Enviamos el paquete JSON completo al backend serverless de Netlify
+            fetch('/.netlify/functions/salvar-cv', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(datosParaEnviar)
+            })
+            .then(response => {
+                if(!response.ok) {
+                    throw new Error("Erro de resposta do servidor");
+                }
+                return response.json();
+            })
+            .then(resultado => {
+                if (resultado.success) {
+                    // Guardamos el ID resultante en el navegador del usuario como respaldo
+                    localStorage.setItem('codigo_cliente', resultado.id);
+                    
+                    // Redirección automática a la pasarela o instrucciones de pago
+                    window.location.href = `instrucciones-pago.html?id=${resultado.id}`;
+                } else {
+                    alert("Erro ao processar as informações do formulário.");
+                    boton.disabled = false;
+                    boton.innerText = "🖨️ Imprimir e Salvar Currículo (PDF)";
+                }
+            })
+            .catch(error => {
+                console.error("Erro:", error);
+                alert("Erro de comunicação com o servidor. Verifique se as funções do Netlify estão ativas.");
+                boton.disabled = false;
+                boton.innerText = "🖨️ Imprimir e Salvar Currículo (PDF)";
+            });
+        });
+        // =========================================================================
+
+    </script>
+</body>
+</html>
